@@ -6,10 +6,10 @@
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Lukas Reschke <lukas@owncloud.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Robin McCorkell <rmccorkell@karoshi.org.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
- * @author Robin McCorkell <rmccorkell@owncloud.com>
  *
  * @copyright Copyright (c) 2015, ownCloud, Inc.
  * @license AGPL-3.0
@@ -43,6 +43,7 @@ use OCP\Security\ISecureRandom;
 class Request implements \ArrayAccess, \Countable, IRequest {
 
 	const USER_AGENT_IE = '/MSIE/';
+	const USER_AGENT_IE_8 = '/MSIE 8.0/';
 	// Android Chrome user agent: https://developers.google.com/chrome/mobile/docs/user-agent
 	const USER_AGENT_ANDROID_MOBILE_CHROME = '#Android.*Chrome/[.0-9]*#';
 	const USER_AGENT_FREEBOX = '#^Mozilla/5\.0$#';
@@ -410,7 +411,9 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 			}
 		}
 
-		$this->items['parameters'] = array_merge($this->items['parameters'], $params);
+		if (is_array($params)) {
+			$this->items['parameters'] = array_merge($this->items['parameters'], $params);
+		}
 		$this->contentDecoded = true;
 	}
 
@@ -553,6 +556,27 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 	}
 
 	/**
+	 * Returns the used HTTP protocol.
+	 *
+	 * @return string HTTP protocol. HTTP/2, HTTP/1.1 or HTTP/1.0.
+	 */
+	public function getHttpProtocol() {
+		$claimedProtocol = strtoupper($this->server['SERVER_PROTOCOL']);
+
+		$validProtocols = [
+			'HTTP/1.0',
+			'HTTP/1.1',
+			'HTTP/2',
+		];
+
+		if(in_array($claimedProtocol, $validProtocols, true)) {
+			return $claimedProtocol;
+		}
+
+		return 'HTTP/1.1';
+	}
+
+	/**
 	 * Returns the request uri, even if the website uses one or more
 	 * reverse proxies
 	 * @return string
@@ -603,7 +627,7 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 		if (strpos($pathInfo, $name) === 0) {
 			$pathInfo = substr($pathInfo, strlen($name));
 		}
-		if($pathInfo === '/'){
+		if($pathInfo === false || $pathInfo === '/'){
 			return '';
 		} else {
 			return $pathInfo;

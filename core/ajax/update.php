@@ -41,12 +41,21 @@ if (OC::checkUpgrade(false)) {
 	// avoid side effects
 	\OC_User::setIncognitoMode(true);
 
+
+
 	$logger = \OC::$server->getLogger();
+	$config = \OC::$server->getConfig();
 	$updater = new \OC\Updater(
 			\OC::$server->getHTTPHelper(),
-			\OC::$server->getConfig(),
+			$config,
 			$logger
 	);
+
+	if ($config->getSystemValue('update.skip-migration-test', false)) {
+		$eventSource->send('success', (string)$l->t('Migration tests are skipped - "update.skip-migration-test" is activated in config.php'));
+		$updater->setSimulateStepEnabled(false);
+	}
+
 	$incompatibleApps = [];
 	$disabledThirdPartyApps = [];
 
@@ -87,6 +96,12 @@ if (OC::checkUpgrade(false)) {
 		$eventSource->send('failure', $message);
 		$eventSource->close();
 		OC_Config::setValue('maintenance', false);
+	});
+	$updater->listen('\OC\Updater', 'setDebugLogLevel', function ($logLevel, $logLevelName) use($eventSource, $l) {
+		$eventSource->send('success', (string)$l->t('Set log level to debug - current level: "%s"', [ $logLevelName ]));
+	});
+	$updater->listen('\OC\Updater', 'resetLogLevel', function ($logLevel, $logLevelName) use($eventSource, $l) {
+		$eventSource->send('success', (string)$l->t('Reset log level to  "%s"', [ $logLevelName ]));
 	});
 
 	try {

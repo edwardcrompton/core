@@ -1,5 +1,6 @@
 <?php
 /**
+ * @author Arthur Schiwon <blizzz@owncloud.com>
  * @author Bart Visscher <bartv@thisnet.nl>
  * @author Bernhard Reiter <ockham@raz.or.at>
  * @author Björn Schießle <schiessle@owncloud.com>
@@ -83,6 +84,13 @@ class Share extends Constants {
 					'supportedFileExtensions' => $supportedFileExtensions
 				);
 				if(count(self::$backendTypes) === 1) {
+					\OC_Util::addScript('core', 'shareconfigmodel');
+					\OC_Util::addScript('core', 'shareitemmodel');
+					\OC_Util::addScript('core', 'sharedialogresharerinfoview');
+					\OC_Util::addScript('core', 'sharedialoglinkshareview');
+					\OC_Util::addScript('core', 'sharedialogexpirationview');
+					\OC_Util::addScript('core', 'sharedialogshareelistview');
+					\OC_Util::addScript('core', 'sharedialogview');
 					\OC_Util::addScript('core', 'share');
 					\OC_Util::addStyle('core', 'share');
 				}
@@ -711,7 +719,7 @@ class Share extends Constants {
 				if ($checkExists['uid_owner'] != $uidOwner || $checkExists['share_type'] == $shareType) {
 					$message = 'Sharing %s failed, because this item is already shared with user %s';
 					$message_t = $l->t('Sharing %s failed, because this item is already shared with user %s', array($itemSourceName, $shareWith));
-					\OC_Log::write('OCP\Share', sprintf($message, $itemSourceName, $shareWith), \OC_Log::ERROR);
+					\OCP\Util::writeLog('OCP\Share', sprintf($message, $itemSourceName, $shareWith), \OCP\Util::ERROR);
 					throw new \Exception($message_t);
 				}
 			}
@@ -765,7 +773,7 @@ class Share extends Constants {
 				}
 
 				// Generate hash of password - same method as user passwords
-				if (!empty($shareWith)) {
+				if (is_string($shareWith) && $shareWith !== '') {
 					self::verifyPassword($shareWith);
 					$shareWith = \OC::$server->getHasher()->hash($shareWith);
 				} else {
@@ -1091,6 +1099,7 @@ class Share extends Constants {
 					'uidOwner' => \OC_User::getUser(),
 					'permissions' => $permissions,
 					'path' => $item['path'],
+					'share' => $item
 				));
 			}
 			// Check if permissions were removed
@@ -1101,16 +1110,18 @@ class Share extends Constants {
 					Helper::delete($item['id'], true, null, null, true);
 				} else {
 					$ids = array();
+					$items = [];
 					$parents = array($item['id']);
 					while (!empty($parents)) {
 						$parents = "'".implode("','", $parents)."'";
-						$query = \OC_DB::prepare('SELECT `id`, `permissions` FROM `*PREFIX*share`'
+						$query = \OC_DB::prepare('SELECT `id`, `permissions`, `item_type` FROM `*PREFIX*share`'
 							.' WHERE `parent` IN ('.$parents.')');
 						$result = $query->execute();
 						// Reset parents array, only go through loop again if
 						// items are found that need permissions removed
 						$parents = array();
 						while ($item = $result->fetchRow()) {
+							$items[] = $item;
 							// Check if permissions need to be removed
 							if ($item['permissions'] & ~$permissions) {
 								// Add to list of items that need permissions removed
@@ -1132,8 +1143,13 @@ class Share extends Constants {
 							.' WHERE `id` IN ('.$ids.')');
 						$query->execute(array($permissions));
 					}
+
+					foreach ($items as $item) {
+						\OC_Hook::emit('OCP\Share', 'post_update_permissions', ['share' => $item]);
+					}
 				}
 			}
+
 			return true;
 		}
 		$message = 'Setting permissions for %s failed, because the item was not found';
@@ -1901,6 +1917,12 @@ class Share extends Constants {
 				$items = array_merge($items, $collectionItems);
 			}
 
+			// filter out invalid items, these can appear when subshare entries exist
+			// for a group in which the requested user isn't a member any more
+			$items = array_filter($items, function($item) {
+				return $item['share_type'] !== self::$shareTypeGroupUserUnique;
+			});
+
 			return self::formatResult($items, $column, $backend, $format, $parameters);
 		} elseif ($includeCollections && $collectionTypes && in_array('folder', $collectionTypes)) {
 			// FIXME: Thats a dirty hack to improve file sharing performance,
@@ -1982,6 +2004,8 @@ class Share extends Constants {
 
 		$queriesToExecute = array();
 		$suggestedItemTarget = null;
+		$groupFileTarget = $fileTarget = $suggestedFileTarget = $filePath = '';
+		$groupItemTarget = $itemTarget = $fileSource = $parent = 0;
 
 		$result = self::checkReshare($itemType, $itemSource, $shareType, $shareWith, $uidOwner, $permissions, $itemSourceName, $expirationDate);
 		if(!empty($result)) {
@@ -1991,7 +2015,6 @@ class Share extends Constants {
 			$suggestedItemTarget = $result['suggestedItemTarget'];
 			$suggestedFileTarget = $result['suggestedFileTarget'];
 			$filePath = $result['filePath'];
-			$expirationDate = $result['expirationDate'];
 		}
 
 		$isGroupShare = false;
@@ -2064,7 +2087,7 @@ class Share extends Constants {
 
 			$userShareType = ($isGroupShare) ? self::$shareTypeGroupUserUnique : $shareType;
 
-			if ($sourceExists) {
+			if ($sourceExists && $sourceExists['item_source'] === $itemSource) {
 				$fileTarget = $sourceExists['file_target'];
 				$itemTarget = $sourceExists['item_target'];
 
@@ -2433,6 +2456,11 @@ class Share extends Constants {
 		}
 		if (isset($row['stime'])) {
 			$row['stime'] = (int) $row['stime'];
+		}
+		if (isset($row['expiration']) && $row['share_type'] !== self::SHARE_TYPE_LINK) {
+			// discard expiration date for non-link shares, which might have been
+			// set by ancient bugs
+			$row['expiration'] = null;
 		}
 	}
 

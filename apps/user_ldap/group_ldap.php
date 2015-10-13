@@ -5,7 +5,9 @@
  * @author Arthur Schiwon <blizzz@owncloud.com>
  * @author Bart Visscher <bartv@thisnet.nl>
  * @author Christopher Schäpers <kondou@ts.unde.re>
+ * @author Frédéric Fortier <frederic.fortier@oronospolytechnique.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Nicolas Grekas <nicolas.grekas@gmail.com>
  * @author Robin McCorkell <rmccorkell@karoshi.org.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
@@ -31,6 +33,7 @@ namespace OCA\user_ldap;
 
 use OCA\user_ldap\lib\Access;
 use OCA\user_ldap\lib\BackendUtility;
+use OCA\user_ldap\lib\user\User;
 
 class GROUP_LDAP extends BackendUtility implements \OCP\GroupInterface {
 	protected $enabled = false;
@@ -195,7 +198,11 @@ class GROUP_LDAP extends BackendUtility implements \OCP\GroupInterface {
 			return array();
 		}
 		$seen[$DN] = 1;
-		$groups = $this->access->readAttribute($DN, 'memberOf');
+		$user = $this->access->userManager->get($DN);
+		if(!$user instanceof User) {
+			return array();
+		}
+		$groups = $user->getMemberOfGroups();
 		if (!is_array($groups)) {
 			return array();
 		}
@@ -240,7 +247,7 @@ class GROUP_LDAP extends BackendUtility implements \OCP\GroupInterface {
 		if(empty($result)) {
 			return false;
 		}
-		$dn = $result[0];
+		$dn = $result[0]['dn'][0];
 
 		//and now the group name
 		//NOTE once we have separate ownCloud group IDs and group names we can
@@ -484,7 +491,7 @@ class GROUP_LDAP extends BackendUtility implements \OCP\GroupInterface {
 			array($this->access->connection->ldapGroupDisplayName, 'dn'));
 		if (is_array($groups)) {
 			foreach ($groups as $groupobj) {
-				$groupDN = $groupobj['dn'];
+				$groupDN = $groupobj['dn'][0];
 				$allGroups[$groupDN] = $groupobj;
 				$nestedGroups = $this->access->connection->ldapNestedGroups;
 				if (!empty($nestedGroups)) {
@@ -646,7 +653,7 @@ class GROUP_LDAP extends BackendUtility implements \OCP\GroupInterface {
 					str_replace('%uid', $member, $this->access->connection->ldapLoginFilter),
 					$this->access->getFilterPartForUserSearch($search)
 				));
-				$ldap_users = $this->access->fetchListOfUsers($filter, 'dn');
+				$ldap_users = $this->access->fetchListOfUsers($filter, 'dn', 1);
 				if(count($ldap_users) < 1) {
 					continue;
 				}
