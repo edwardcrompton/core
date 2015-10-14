@@ -74,8 +74,8 @@ Feature: provisioning
 		Given As an "admin"
 		And user "brand-new-user" exists
 		When sending "POST" to "/cloud/users/brand-new-user/groups" with
-		  | groupid |  |
-    Then the OCS status code should be "101"
+			| groupid |  |
+		Then the OCS status code should be "101"
 		And the HTTP status code should be "200"
 
 	Scenario: adding user to a group which doesn't exist
@@ -84,14 +84,14 @@ Feature: provisioning
 		And group "not-group" does not exist
 		When sending "POST" to "/cloud/users/brand-new-user/groups" with
 			| groupid | not-group |
-    Then the OCS status code should be "102"
+		Then the OCS status code should be "102"
 		And the HTTP status code should be "200"
 
 	Scenario: adding user to a group without privileges
 		Given As an "brand-new-user"
 		When sending "POST" to "/cloud/users/brand-new-user/groups" with
 			| groupid | new-group |
-    Then the OCS status code should be "997"
+		Then the OCS status code should be "997"
 		And the HTTP status code should be "401"
 
 	Scenario: adding user to a group
@@ -100,7 +100,7 @@ Feature: provisioning
 		And group "new-group" exists
 		When sending "POST" to "/cloud/users/brand-new-user/groups" with
 			| groupid | new-group |
-    Then the OCS status code should be "100"
+		Then the OCS status code should be "100"
 		And the HTTP status code should be "200"
 
 	Scenario: getting groups of an user
@@ -110,17 +110,17 @@ Feature: provisioning
 		When sending "GET" to "/cloud/users/brand-new-user/groups"
 		Then groups returned are
 			| new-group |
-    And the OCS status code should be "100"
+		And the OCS status code should be "100"
 
-  Scenario: removing a user from a group
-  	Given As an "admin"
+	Scenario: removing a user from a group
+		Given As an "admin"
 		And user "brand-new-user" exists
 		And group "new-group" exists
 		And user "brand-new-user" belongs to group "new-group"
 		When sending "DELETE" to "/cloud/users/brand-new-user/groups" with
 			| groupid | new-group |
-    Then the OCS status code should be "100"
-    And user "brand-new-user" does not belong to group "new-group"
+		Then the OCS status code should be "100"
+		And user "brand-new-user" does not belong to group "new-group"
 
 	Scenario: adding a user which doesn't exist to a group
 		Given As an "admin"
@@ -128,7 +128,7 @@ Feature: provisioning
 		And group "new-group" exists
 		When sending "POST" to "/cloud/users/not-user/groups" with
 			| groupid | new-group |
-    Then the OCS status code should be "103"
+		Then the OCS status code should be "103"
 		And the HTTP status code should be "200"
 
 	Scenario: getting a group
