@@ -633,8 +633,8 @@ class Share extends Constants {
 			// verify that the user has share permission
 			if (!\OC\Files\Filesystem::isSharable($path)) {
 				$message = 'You are not allowed to share %s';
-				$message_t = $l->t('You are not allowed to share %s', array($itemSourceName));
-				\OCP\Util::writeLog('OCP\Share', sprintf($message, $itemSourceName), \OCP\Util::DEBUG);
+				$message_t = $l->t('You are not allowed to share %s', [$path]);
+				\OCP\Util::writeLog('OCP\Share', sprintf($message, $path), \OCP\Util::DEBUG);
 				throw new \Exception($message_t);
 			}
 		}
@@ -1914,6 +1914,7 @@ class Share extends Constants {
 				}
 			}
 			if (!empty($collectionItems)) {
+				$collectionItems = array_unique($collectionItems, SORT_REGULAR);
 				$items = array_merge($items, $collectionItems);
 			}
 
