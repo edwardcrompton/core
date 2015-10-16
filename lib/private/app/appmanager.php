@@ -284,14 +284,17 @@ class AppManager implements IAppManager {
 		return $incompatibleApps;
 	}
 
+	/**
+	 * @inheritdoc
+	 */
 	public function isShipped($appId) {
 		$this->loadShippedJson();
 		return in_array($appId, $this->shippedApps);
 	}
 
 	private function isAlwaysEnabled($appId) {
-		$this->loadShippedJson();
-		return in_array($appId, $this->alwaysEnabled);
+		$alwaysEnabled = $this->getAlwaysEnabledApps();
+		return in_array($appId, $alwaysEnabled);
 	}
 
 	private function loadShippedJson() {
@@ -310,4 +313,11 @@ class AppManager implements IAppManager {
 		}
 	}
 
+	/**
+	 * @inheritdoc
+	 */
+	public function getAlwaysEnabledApps() {
+		$this->loadShippedJson();
+		return $this->alwaysEnabled;
+	}
 }
