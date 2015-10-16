@@ -190,7 +190,7 @@ class Updater {
 			$targetCache->correctFolderSize($sourceInternalPath);
 			$targetCache->correctFolderSize($targetInternalPath);
 			$this->correctParentStorageMtime($sourceStorage, $sourceInternalPath);
-			$this->correctParentStorageMtime($targetStorage, $targetInternalPath);
+			$this->correctParentStorageMtime($targetStorage, $targetInternalPath, true);
 			$this->propagator->addChange($source);
 			$this->propagator->addChange($target);
 			$this->propagator->propagateChanges();
@@ -202,9 +202,16 @@ class Updater {
 	 *
 	 * @param \OC\Files\Storage\Storage $storage
 	 * @param string $internalPath
+	 * @param bool $includeCurrent whether to include the current entry
 	 */
-	private function correctParentStorageMtime($storage, $internalPath) {
+	private function correctParentStorageMtime($storage, $internalPath, $includeCurrent = false) {
 		$cache = $storage->getCache();
+		if ($includeCurrent) {
+			$fileId = $cache->getId($internalPath);
+			if ($fileId !== -1) {
+				$cache->update($fileId, array('storage_mtime' => $storage->filemtime($internalPath)));
+			}
+		}
 		$parentId = $cache->getParentId($internalPath);
 		$parent = dirname($internalPath);
 		if ($parentId != -1) {
