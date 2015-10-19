@@ -88,10 +88,10 @@ class FeatureContext extends BehatContext {
 	/**
 	 * This function is needed to use a vertical fashion in the gherkin tables.
 	 */
-    public function simplifyArray($arrayOfArrays){
-    	$a = array_map(function($subArray) { return $subArray[0]; }, $arrayOfArrays);
-    	return $a;
-    }
+	public function simplifyArray($arrayOfArrays){
+		$a = array_map(function($subArray) { return $subArray[0]; }, $arrayOfArrays);
+		return $a;
+	}
    
 	/**
 	 * @Then /^users returned are$/
